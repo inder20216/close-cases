@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VMM - Upload Case Close CSV</title>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 480px; margin: 60px auto; }
+  h2 { margin-bottom: 4px; }
+  input[type="file"] { margin: 16px 0; }
+  button {
+    background: #2563eb; color: #fff; border: none;
+    padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 15px;
+  }
+  button:disabled { background: #93c5fd; cursor: not-allowed; }
+  #status { margin-top: 16px; font-size: 14px; }
+</style>
+</head>
+<body>
+  <h2>Upload Case Close CSV</h2>
+  <p>Columns required: Complaint No, Email Subject, Case Closed By, Remarks</p>
+
+  <input type="file" id="csvFile" accept=".csv" />
+  <br>
+  <button id="uploadBtn">Upload CSV</button>
+
+  <div id="status"></div>
+
+  <hr style="margin: 24px 0;">
+
+  <button id="runBtn" disabled>Click to Complete Rest of the Task</button>
+  <div id="runStatus"></div>
+
+  <script>
+    // Replace with your actual n8n webhook URLs
+    const UPLOAD_URL = "https://automation.openmindhelpline.com/webhook/vmm-csv-upload";
+    const RUN_URL = "https://automation.openmindhelpline.com/webhook/close-cases";
+
+    const fileInput = document.getElementById("csvFile");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const statusEl = document.getElementById("status");
+
+    const runBtn = document.getElementById("runBtn");
+    const runStatusEl = document.getElementById("runStatus");
+
+    uploadBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        statusEl.textContent = "Please choose a CSV file first.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("data", file); // must match binaryPropertyName "data" in Webhook node
+
+      uploadBtn.disabled = true;
+      statusEl.textContent = "Uploading...";
+
+      try {
+        const res = await fetch(UPLOAD_URL, {
+          method: "POST",
+          body: formData
+        });
+
+        if (res.ok) {
+          statusEl.textContent = "✅ CSV upload completed.";
+          runBtn.disabled = false; // unlock step 2 only after successful upload
+        } else {
+          statusEl.textContent = "❌ Upload failed: " + res.status + " " + res.statusText;
+        }
+      } catch (err) {
+        statusEl.textContent = "❌ Error: " + err.message;
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    });
+
+    runBtn.addEventListener("click", async () => {
+      runBtn.disabled = true;
+      runStatusEl.textContent = "Running rest of the task...";
+
+      try {
+        const res = await fetch(RUN_URL, { method: "POST" });
+
+        if (res.ok) {
+          runStatusEl.textContent = "✅ Task completed.";
+        } else {
+          runStatusEl.textContent = "❌ Failed: " + res.status + " " + res.statusText;
+        }
+      } catch (err) {
+        runStatusEl.textContent = "❌ Error: " + err.message;
+      } finally {
+        runBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
